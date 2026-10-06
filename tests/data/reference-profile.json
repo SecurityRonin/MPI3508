@@ -1,0 +1,18 @@
+{
+  "profile": "pi5-kali-reference",
+  "matrix": [
+    "-0.002296031116191308",
+    "-0.9921051268461499",
+    "1.0030508935417717",
+    "-1.025727266567984",
+    "-0.012705460331736715",
+    "1.0049107831524058",
+    "0",
+    "0",
+    "1"
+  ],
+  "abs_bounds": {"x": [200, 3900], "y": [200, 3900]},
+  "calibration_scope": "One measured panel; recorded startup/property readback, not fresh physical edge acceptance",
+  "normalization": "libinput inclusive ABS endpoints",
+  "provenance": "Scrubbed existing reference configuration supplied by the specification owner; mechanics fixtures remain synthetic. This is recorded configuration, not an independent physical validation."
+}

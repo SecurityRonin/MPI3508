@@ -1,0 +1,9 @@
+repos:
+  - repo: local
+    hooks:
+      - id: mpi3508-checks
+        name: MPI3508 acceptance and public-source gates
+        entry: python3 tests/run_checks.py
+        language: system
+        pass_filenames: false
+        always_run: true
