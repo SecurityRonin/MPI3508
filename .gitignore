@@ -1,0 +1,5 @@
+__pycache__/
+.ruff_cache/
+docs/_site/
+docs/.jekyll-cache/
+docs/.jekyll-metadata
