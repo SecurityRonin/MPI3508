@@ -110,7 +110,7 @@ Reboot yourself when convenient, then rerun the same install command. Saved boot
 
 ## Restore and recovery
 
-Keep every transaction identifier printed by install. Restore stage transactions in reverse installation order: the newest Xorg stage first, then the earlier boot stage. Restore accepts an identifier, not an arbitrary backup path, and requires root and confirmation. Before changing any target, it validates every current postimage and backup identity/hash. A later edit causes refusal, not a forced overwrite. Restore still requires the supported environment; independent recovery access is needed when those prerequisites are no longer available.
+Keep every transaction identifier printed by install. Restore stage transactions in reverse installation order: the newest Xorg stage first, then the earlier boot stage. Restore accepts an identifier, not an arbitrary backup path, and requires root and confirmation. Before changing any target, it checks that every current postimage and backup still has its recorded content hash, size, owner and mode. Inode and device numbers are not compared across sessions, because a firmware remount or reboot can change them. A later edit causes refusal, not a forced overwrite. Restore still requires the supported running environment, including exactly one existing Xorg display; independent recovery access is needed when those prerequisites are no longer available.
 
 If the Xorg rule originally did not exist, restoration removes only the verified file owned by that transaction. Interrupted operations must be detected on the next invocation. When rollback cannot safely finish, retain the journal and backups and follow the reported manual recovery diagnosis. No recursive deletion is part of restoration.
 

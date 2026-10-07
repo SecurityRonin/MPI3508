@@ -357,6 +357,16 @@ def identity(info):
     }
 
 
+# The cross-session file contract. Journals also record dev/ino, but those are only
+# within-run identity: Linux FAT assigns inode numbers with iunique() when the
+# filesystem is mounted, and device numbers can change across reboot.
+CONTRACT = ("sha256", "size", "uid", "gid", "mode")
+
+
+def contract(snapshot):
+    return None if snapshot is None else {key: snapshot[key] for key in CONTRACT}
+
+
 def mount_id(fd):
     """Observe the opened descriptor's mount, not a pathname or device number."""
     if sys.platform != "linux":
@@ -555,6 +565,12 @@ class Files:
         if observed != expected:
             raise InstallerError(f"File drift, hash or identity changed: {relative}")
 
+    def expect_contract(self, relative, expected):
+        """Check a snapshot saved by an earlier session; refuses content/owner/mode drift."""
+        _, observed = self.read(relative, absent=True)
+        if contract(observed) != contract(expected):
+            raise InstallerError(f"File drift, hash, owner or mode changed: {relative}")
+
     def exclusive(self, relative, raw, metadata=None):
         fd, name = self.parent(relative)
         handle = os.open(
@@ -672,6 +688,32 @@ def preflight(files, profile_name):
     # Validate the state parent even before creating state or backups.
     files.directory("var/lib")
     return boot, rule, boot_snapshot, rule_snapshot
+
+
+def plan_targets(boot, rule, profile_name, include_xorg):
+    plans = [(BOOT, boot, plan_boot(boot, profile_name))]
+    if include_xorg:
+        plans.append((RULE, rule, render_xorg(profile_name)))
+    return plans
+
+
+def plan_changes(plans):
+    return {path: (old, new) for path, old, new in plans if old != new}
+
+
+def show_plan(plans):
+    for path, old, new in plans:
+        print(
+            "".join(
+                difflib.unified_diff(
+                    (old or b"").decode().splitlines(keepends=True),
+                    new.decode().splitlines(keepends=True),
+                    fromfile="/" + path,
+                    tofile="/" + path + " (planned)",
+                )
+            ),
+            end="",
+        )
 
 
 def checkpoint_call(checkpoint, stage, path=None):
@@ -832,7 +874,7 @@ def validate_lineage(files, records, tip):
         visited.add(tip)
         for entry in records[tip]["entries"]:
             if entry["path"] not in paths:
-                files.expect(entry["path"], entry["after"])
+                files.expect_contract(entry["path"], entry["after"])
                 paths.add(entry["path"])
             backup_bytes(files, entry)
         tip = records[tip]["parent"]
@@ -841,7 +883,7 @@ def validate_lineage(files, records, tip):
 def backup_bytes(files, entry):
     if entry["backup"] is None:
         return None
-    files.expect(entry["backup"], entry["backup_snapshot"])
+    files.expect_contract(entry["backup"], entry["backup_snapshot"])
     raw, snapshot = files.read(entry["backup"])
     if snapshot["sha256"] != entry["before"]["sha256"]:
         raise InstallerError("Backup hash mismatch")
@@ -861,7 +903,8 @@ def reverse_writes(files, completed):
             files.expect(path, staged)
 
 
-def install(layout, profile_name, checkpoint=None, include_xorg=True):
+def install(layout, profile_name, checkpoint=None, include_xorg=True, confirmed=None):
+    """confirmed: the plan_changes() shown before acknowledgement; any other plan refuses."""
     profile(profile_name)
     try:
         with Files(layout) as files:
@@ -871,12 +914,14 @@ def install(layout, profile_name, checkpoint=None, include_xorg=True):
                 parent = active_tip(records)
                 validate_lineage(files, records, parent)
                 boot, rule, boot_snapshot, rule_snapshot = preflight(files, profile_name)
-                planned = [(BOOT, boot, boot_snapshot, plan_boot(boot, profile_name))]
-                if include_xorg:
-                    planned.append((RULE, rule, rule_snapshot, render_xorg(profile_name)))
+                plans = plan_targets(boot, rule, profile_name, include_xorg)
+                if confirmed is not None and plan_changes(plans) != confirmed:
+                    raise InstallerError("Planned changes differ from the confirmed plan")
+                snapshots = {BOOT: boot_snapshot, RULE: rule_snapshot}
+                planned = [(path, raw, snapshots[path], new) for path, raw, new in plans]
                 if all(raw == new for _, raw, _, new in planned) and parent is not None:
                     for entry in records[parent]["entries"]:
-                        files.expect(entry["path"], entry["after"])
+                        files.expect_contract(entry["path"], entry["after"])
                     return parent
                 tx = uuid.uuid4().hex
                 data = {
@@ -985,7 +1030,7 @@ def restore(layout, transaction, checkpoint=None):
             prepared = []
             for entry in data["entries"]:
                 path = entry["path"]
-                files.expect(path, entry["after"])
+                files.expect_contract(path, entry["after"])
                 current, current_snapshot = files.read(path)
                 original = backup_bytes(files, entry)
                 stage, staged = None, None
@@ -1028,11 +1073,7 @@ def restore(layout, transaction, checkpoint=None):
                     parent_data, parent_snapshot = load_journal(files, data["parent"])
                     for entry in parent_data["entries"]:
                         _, observed = files.read(entry["path"])
-                        wanted = entry["after"]
-                        if any(
-                            observed[k] != wanted[k]
-                            for k in ("sha256", "size", "uid", "gid", "mode")
-                        ):
+                        if contract(observed) != contract(entry["after"]):
                             raise InstallerError("Parent lineage postimage drift")
                         entry["after"] = observed
                     save_journal(files, parent_data, parent_snapshot)
@@ -1359,13 +1400,23 @@ def main(argv=None):
     try:
         check_environment()
         layout = Layout()
+        if args.command in {"install", "restore"} and os.geteuid() != 0:
+            raise InstallerError("Root privileges required")
+        if args.command != "restore":
+            runtime = runtime_report(layout, args.profile)
+            include_xorg = all(
+                runtime.get(k) == "match" for k in ("bounds", "dt_bounds", "abs_bounds")
+            )
         if args.command in {"install", "restore"}:
-            if os.geteuid() != 0:
-                raise InstallerError("Root privileges required")
             print("Requires an already working display and an independent recovery route.")
             if args.command == "install":
                 print(profile(args.profile)["wiring"])
                 print(profile(args.profile)["caveat"])
+                # Show this run's own plan; install refuses if its locked plan differs.
+                with Files(layout) as files:
+                    boot, rule, _, _ = preflight(files, args.profile)
+                plans = plan_targets(boot, rule, args.profile, include_xorg)
+                show_plan(plans)
             if not args.yes:
                 try:
                     answer = input("Confirm prerequisites and these changes by typing yes: ")
@@ -1377,33 +1428,19 @@ def main(argv=None):
             restore(layout, args.transaction)
             print("Saved transaction restored. Runtime and physical state not examined.")
             return 0
-        runtime = runtime_report(layout, args.profile)
-        include_xorg = all(runtime.get(k) == "match" for k in ("bounds", "dt_bounds", "abs_bounds"))
         if args.command == "preview":
             with Files(layout) as files:
                 boot, rule, _, _ = preflight(files, args.profile)
-                plans = [(BOOT, boot, plan_boot(boot, args.profile))]
-                if include_xorg:
-                    plans.append((RULE, rule or b"", render_xorg(args.profile)))
-                for path, old, new in plans:
-                    print(
-                        "".join(
-                            difflib.unified_diff(
-                                old.decode().splitlines(keepends=True),
-                                new.decode().splitlines(keepends=True),
-                                fromfile="/" + path,
-                                tofile="/" + path + " (planned)",
-                            )
-                        ),
-                        end="",
-                    )
+            show_plan(plan_targets(boot, rule, args.profile, include_xorg))
             print(profile(args.profile)["caveat"])
             print(profile(args.profile)["wiring"])
             print(
                 "Matrix eligible" if include_xorg else "Boot-only plan; reboot and rerun required."
             )
         elif args.command == "install":
-            tx = install(layout, args.profile, include_xorg=include_xorg)
+            tx = install(
+                layout, args.profile, include_xorg=include_xorg, confirmed=plan_changes(plans)
+            )
             print("saved-configured" if include_xorg else "boot-configured-reboot-required")
             print(f"Transaction: {tx}. Restore stage transactions in reverse installation order.")
             print("Reboot is user-controlled. Rerun after reboot to examine effective bounds.")

@@ -90,9 +90,9 @@ The CLI options below are checked against this candidate’s `--help`. Direct-fi
 | `python3 -I mpi3508.py verify` | Report saved-file checks separately from available runtime observations. |
 | `sudo python3 -I mpi3508.py restore --transaction ID` | Replace `ID` with an installer-issued transaction identifier; restore only if current files and backups still match. |
 
-Install and restore prompt for confirmation; `--yes` is explicit noninteractive acknowledgement. There is no arbitrary restore-path, filesystem-root or environment override in the public CLI.
+Install shows the diff for every file it will change, then prompts for confirmation; restore also prompts. Install refuses if its plan changes after that diff was shown; `--yes` is explicit noninteractive acknowledgement. There is no arbitrary restore-path, filesystem-root or environment override in the public CLI.
 
-Conflicting evdev/calibration rules, ambiguous boot sections or includes, unknown prerequisites, unsafe paths and concurrent edits must fail loudly. The installer does not delete competing rules to make itself work. Keep the transaction identifier reported by install. If files have changed since installation, restore refuses instead of erasing those edits; incomplete recovery preserves records and names the manual recovery needed.
+Conflicting evdev/calibration rules, ambiguous boot sections or includes, unknown prerequisites, unsafe paths and concurrent edits must fail loudly. The installer does not delete competing rules to make itself work. Keep the transaction identifier reported by install. If file content, owner or mode has changed since installation, restore refuses instead of erasing those edits; incomplete recovery preserves records and names the manual recovery needed. Restore requires the same supported running environment as install, including exactly one existing Xorg display; when that is no longer available, use an independent recovery route.
 
 ### The boot boundary is deliberate
 
