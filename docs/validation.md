@@ -74,5 +74,4 @@ The following pinned vendor scripts copy the MPI3508 calibration preset and incl
 
 Those presets exist and may work with an appropriate evdev setup. Their source does not establish that they are universally wrong, that this libinput profile fits every MPI3508, or that either vendor tested this project’s target environment.
 
-[Guide](https://securityronin.github.io/MPI3508/) · [Privacy](https://securityronin.github.io/MPI3508/privacy) · [Terms](https://securityronin.github.io/MPI3508/terms)  
-© Security Ronin Ltd
+[Guide](https://securityronin.github.io/MPI3508/) · [Privacy Policy](https://securityronin.github.io/MPI3508/privacy/) · [Terms of Service](https://securityronin.github.io/MPI3508/terms/) · © 2026 Security Ronin Ltd

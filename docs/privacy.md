@@ -22,5 +22,4 @@ This project’s documentation configuration adds no analytics or tracking scrip
 
 Issues and pull requests are public when the repository is public. Share the relevant diagnostic result and configuration fragment, not unredacted journals, private paths, hostnames, addresses, credentials or full logs.
 
-[Guide](https://securityronin.github.io/MPI3508/) · [Terms](https://securityronin.github.io/MPI3508/terms)  
-© Security Ronin Ltd
+[Guide](https://securityronin.github.io/MPI3508/) · [Terms of Service](https://securityronin.github.io/MPI3508/terms/) · © 2026 Security Ronin Ltd

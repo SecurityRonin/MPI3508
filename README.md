@@ -114,5 +114,4 @@ The upstream Xorg libinput driver documents `CalibrationMatrix` as nine space-se
 
 ---
 
-[Privacy](https://securityronin.github.io/MPI3508/privacy) · [Terms](https://securityronin.github.io/MPI3508/terms)  
-© Security Ronin Ltd
+[Privacy Policy](https://securityronin.github.io/MPI3508/privacy/) · [Terms of Service](https://securityronin.github.io/MPI3508/terms/) · © 2026 Security Ronin Ltd

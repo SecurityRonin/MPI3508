@@ -20,5 +20,4 @@ Privileged changes to boot and Xorg configuration can affect input availability.
 
 Saved-file checks, runtime readback and physical stylus accuracy are distinct. Automated verification cannot substitute for a physical test. The [validation record](https://securityronin.github.io/MPI3508/validation) states the evidence available for this project.
 
-[Guide](https://securityronin.github.io/MPI3508/) · [Privacy](https://securityronin.github.io/MPI3508/privacy)  
-© Security Ronin Ltd
+[Guide](https://securityronin.github.io/MPI3508/) · [Privacy Policy](https://securityronin.github.io/MPI3508/privacy/) · © 2026 Security Ronin Ltd

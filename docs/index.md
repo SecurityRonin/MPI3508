@@ -114,5 +114,4 @@ Keep every transaction identifier printed by install. Restore stage transactions
 
 If the Xorg rule originally did not exist, restoration removes only the verified file owned by that transaction. Interrupted operations must be detected on the next invocation. When rollback cannot safely finish, retain the journal and backups and follow the reported manual recovery diagnosis. No recursive deletion is part of restoration.
 
-[Validation]({{ '/validation/' | relative_url }}) · [Privacy]({{ '/privacy/' | relative_url }}) · [Terms]({{ '/terms/' | relative_url }})  
-© Security Ronin Ltd
+[Validation]({{ '/validation/' | relative_url }}) · [Privacy Policy]({{ '/privacy/' | relative_url }}) · [Terms of Service]({{ '/terms/' | relative_url }}) · © 2026 Security Ronin Ltd
