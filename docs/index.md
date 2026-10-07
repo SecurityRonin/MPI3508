@@ -30,7 +30,7 @@ try:
     artifact = os.path.join(directory, "mpi3508.py")
     fd = os.open(artifact, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
     with os.fdopen(fd, "wb") as output:
-        with urllib.request.urlopen("https://raw.githubusercontent.com/SecurityRonin/MPI3508/a51deb06ef4f27f47d0b768241d8578dd818cc8d/mpi3508.py", timeout=30) as response:
+        with urllib.request.urlopen("https://raw.githubusercontent.com/SecurityRonin/MPI3508/107a14e28a6d5d5242310fba19f3077b4caece5f/mpi3508.py", timeout=30) as response:
             payload = response.read(2097153)
         if not 0 < len(payload) <= 2097152:
             raise ValueError("invalid artifact size")
@@ -39,7 +39,7 @@ try:
 except Exception as error:
     sys.exit("Download refused: " + type(error).__name__)
 ')" &&
-source_sha=d9e4c11dc6d0ecaa00a13ff15f9e5578b87c911d9b93d16c6a3f358d5a6d2401 &&
+source_sha=3ffe690f5a9e77fab8cf4c1f8cb6d2939ed4890a52a0ae0b2a8d0d6906c51029 &&
 verifier='
 import hashlib, os, re, stat, sys
 try:
