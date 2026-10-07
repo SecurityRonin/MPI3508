@@ -8,9 +8,9 @@ permalink: /validation/
 
 ## Current evidence boundary
 
-The production candidate is signed commit `5f421f6484ecc5c2cee3e23080c02a00fe25525e`, installer SHA256 `a575c0446faf85523bd6e39c61bbedf9285d4ab5da0c4247af4ef9cae90ffb78`. Its implementer’s revision-bound logs record compilation, lint, formatter and bounded public-tree scans, and a full suite with 87 discovered methods: 86 executed and one platform skip on Darwin, and 86 executed with the complementary platform skip in a disposable Linux arm64 container. These are **local-green, implementer-side results**, not independent acceptance.
+The production candidate is signed commit `a51deb06ef4f27f47d0b768241d8578dd818cc8d`, installer SHA256 `d9e4c11dc6d0ecaa00a13ff15f9e5578b87c911d9b93d16c6a3f358d5a6d2401`. Independent source-stage checks recorded on 7 October 2026 passed compilation, lint, formatting and bounded public-tree/commit-message scans. The full suite discovered 106 methods: 105 executed with one platform skip on Darwin, and 105 executed with the complementary platform skip in disposable Linux arm64. Both platforms also passed the optimized unsafe-path and bootstrap subsets, each containing nine methods. The 19 saved-parameter and mount regressions passed separately.
 
-The documentation doer independently read the committed bytes, checked the log hashes against the revision-bound handoff, and read the recorded results. The logs concern this candidate; a green local run does not establish remote CI execution, public-download availability or deployed Pages links. Independent checker acceptance and those publication gates remain pending.
+These checks concern the exact source candidate, not final delivery acceptance. Final independent delivery review, an actual Jekyll build and rendered HTML readback, public-download availability, remote CI execution and deployed Pages links remain pending.
 
 The new public installer has not been run on the reference Pi. The inherited reference record concerns a manually configured panel, not an installation by this program.
 
@@ -18,7 +18,8 @@ The new public installer has not been run on the reference Pi. The inherited ref
 |---|---|---|
 | `[QUOTED]` Scrubbed reference record, supplied 6 October 2026 | A panel-specific profile and recorded startup/property readback on one panel | Raw hardware observations were not independently repeated for this document. No fresh physical edge test. |
 | `[OBSERVED]` Debian-published upstream libinput manual and pinned vendor source, read 6 October 2026 | The documented option format and the contents of those source revisions | A documented option or vendor preset does not establish a particular panel’s accuracy. |
-| Synthetic installer tests (T3) | Configuration, refusal and transaction behavior in constructed fixtures | Revision-bound local execution is recorded above; author-created fixtures are not an independent oracle for panel accuracy. |
+| Synthetic installer tests (T3) | Configuration, refusal and transaction behavior in constructed fixtures | Revision-bound independent execution is recorded above; author-created fixtures are not an independent oracle for panel accuracy. |
+| Native Linux path controls (T2) | Selected install/restore, unexpected-mount refusals and descriptor-alias/cache checks on real Linux filesystems | Chosen container scenarios, not a Pi installation or an arbitrary privileged dynamic-overmount test. |
 | Source-contract C oracle (T2) | C structure layout, ioctl request values and decoding of chosen ABI bytes agree with the Python implementation | Compiled on Darwin against pinned Linux header fragments with synthetic values, not against a running Pi kernel. |
 
 ## Reference profile
@@ -29,13 +30,13 @@ The supplied profile is `pi5-kali-reference`: Raspberry Pi 5 / Kali arm64 / Xorg
 -0.002296031116191308 -0.9921051268461499 1.0030508935417717 -1.025727266567984 -0.012705460331736715 1.0049107831524058 0 0 1
 ```
 
-These values are copied from the supplied scrubbed profile, not a new fit or an independent measurement. Recorded property persistence is different from physical accuracy. No pixel-error bound, edge-coverage result, accuracy percentage or cross-unit compatibility result is available in this publication record.
+These values are copied from the supplied scrubbed profile, not a new fit or an independent measurement. The profile uses libinput’s inclusive ABS endpoint normalization. Recorded property persistence is different from physical accuracy. No pixel-error bound, edge-coverage result, accuracy percentage or cross-unit compatibility result is available in this publication record.
 
 ## What verification must distinguish
 
 The acceptance contract separates:
 
-1. **Saved-file verification:** an independent read of installed configuration, not merely reuse of the planner’s output.
+1. **Saved-file verification:** an independent read of installed configuration, including equality of the complete parsed ADS7846 parameter set, not merely reuse of the planner’s output.
 2. **Runtime observation:** available device-tree parameters, ABS bounds, Xorg rule application, live libinput matrix and identity Coordinate Transformation Matrix. Device selection uses identifying properties, not changing event numbers or process IDs.
 3. **Physical acceptance:** stylus tests across the actual display, including edges. Automatic verification does not perform this.
 
@@ -46,6 +47,14 @@ Missing runtime access is “unavailable” or “not examined”, not a success
 The required independent suite covers configuration scope and line endings; explicit profiles; conflict and unsupported-environment refusals; linked/unsafe paths; malformed state; idempotence; concurrent drift; transactional failure points; rollback; interrupted work; and drift-safe restore. Real CLI/filesystem transactions must also be exercised in disposable Linux. Tests of synthetic files cannot establish behavior on a physical Pi.
 
 The independent checker, not the implementation author, owns acceptance. Publication requires compilation, full tests, lint, formatting and secret/private-identifier checks at the delivery revision, including commit messages. A clean source tree and deployed documentation links are separate publication checks.
+
+### Native Linux mount scope
+
+The source observes opened descriptors and rechecks held handles against their current paths. Only the exact `/boot/firmware` directory may introduce a separately mounted filesystem; that exception does not extend to its target file. An unavailable mount observation remains distinct from an observed unexpected boundary.
+
+Selected native Linux controls (T2) completed install/restore on an ordinary tree and with `/boot/firmware` backed by a bind mount or tmpfs. Unexpected directory, target-file and lock-file mounts refused before transactional checkpoints, with the examined fixture and host manifests unchanged. Separate cache controls used actual alias descriptors. Successful restoration recovered recorded target bytes and metadata, while atomic replacement changed inode identity and durable transaction state remained.
+
+The native descriptor reader agreed with independently read Linux fdinfo/mountinfo. Constructed grammar and read-error controls are T3. Container processes had no effective or bounding capabilities and `NoNewPrivs` was set. These are bounded observations: arbitrary concurrent mount manipulation by a process with `CAP_SYS_ADMIN` was not examined. Descriptor-alias/cache controls are not a dynamic-overmount test, and neither establishes runtime touch accuracy on a Pi.
 
 ## Sources read
 

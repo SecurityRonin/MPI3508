@@ -8,7 +8,7 @@ permalink: /
 
 Touchscreen-only configuration for the MPI3508 reference panel on Raspberry Pi 5 / Kali arm64 / Xorg-libinput. The display must already work.
 
-> **Release candidate.** Local installer checks are green. Independent acceptance, the public download and Pages deployment remain pending. See [validation]({{ '/validation/' | relative_url }}) for the distinction between recorded panel observations and installer-mechanics tests.
+> **Release candidate.** Independent source-stage checks are green. Final delivery acceptance, the public download and Pages deployment remain pending. See [validation]({{ '/validation/' | relative_url }}) for the distinction between recorded panel observations, installer-mechanics tests and bounded native Linux checks.
 
 ## Before changing anything
 
@@ -30,7 +30,7 @@ try:
     artifact = os.path.join(directory, "mpi3508.py")
     fd = os.open(artifact, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
     with os.fdopen(fd, "wb") as output:
-        with urllib.request.urlopen("https://raw.githubusercontent.com/SecurityRonin/MPI3508/5f421f6484ecc5c2cee3e23080c02a00fe25525e/mpi3508.py", timeout=30) as response:
+        with urllib.request.urlopen("https://raw.githubusercontent.com/SecurityRonin/MPI3508/a51deb06ef4f27f47d0b768241d8578dd818cc8d/mpi3508.py", timeout=30) as response:
             payload = response.read(2097153)
         if not 0 < len(payload) <= 2097152:
             raise ValueError("invalid artifact size")
@@ -39,7 +39,7 @@ try:
 except Exception as error:
     sys.exit("Download refused: " + type(error).__name__)
 ')" &&
-source_sha=a575c0446faf85523bd6e39c61bbedf9285d4ab5da0c4247af4ef9cae90ffb78 &&
+source_sha=d9e4c11dc6d0ecaa00a13ff15f9e5578b87c911d9b93d16c6a3f358d5a6d2401 &&
 verifier='
 import hashlib, os, re, stat, sys
 try:
