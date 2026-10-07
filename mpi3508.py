@@ -101,6 +101,10 @@ class InstallerError(Exception):
     """An explicit refusal; no security decisions depend on Python assertions."""
 
 
+class MountObservationError(OSError):
+    """Mount evidence is unavailable, rather than an established forbidden boundary."""
+
+
 def profile(name):
     if name not in PROFILES:
         raise InstallerError(f"Unknown profile: {name}")
@@ -353,13 +357,33 @@ def identity(info):
     }
 
 
+def mount_id(fd):
+    """Observe the opened descriptor's mount, not a pathname or device number."""
+    if sys.platform != "linux":
+        return None
+    # proc_pid_fdinfo(5), mnt_id; Linux fs/proc/fd.c emits a decimal mount ID.
+    with Path(f"/proc/self/fdinfo/{fd}").open("rb") as stream:
+        raw = stream.read(LIMIT + 1)
+    fields = [line for line in raw.splitlines() if line.startswith(b"mnt_id:")]
+    if len(raw) > LIMIT or len(fields) != 1:
+        raise OSError("Mount observation missing or ambiguous")
+    match = re.fullmatch(rb"mnt_id:[ \t]*([0-9]+)", fields[0])
+    if match is None:
+        raise OSError("Malformed mount observation")
+    try:
+        return int(match[1])
+    except ValueError:
+        raise OSError("Invalid mount observation") from None
+
+
 class Files:
-    """Descriptor-relative operations with no symlink traversal inside Layout."""
+    """Descriptor-relative operations with no symlink or unexpected mount traversal."""
 
     def __init__(self, layout):
         self.layout = layout
         self.root = Path(layout.root)
         self.dirs = {}
+        self.mounts = {}
         self.lock = None
 
     def __enter__(self):
@@ -383,8 +407,67 @@ class Files:
         if not directory and info.st_nlink != 1:
             raise InstallerError(f"Unsafe hardlink: {path}")
 
+    def observation(self, fd):
+        try:
+            value = mount_id(fd)
+        except OSError:
+            raise MountObservationError("Mount observation unavailable") from None
+        if type(value) is int and value >= 0:
+            return value
+        if value is None and sys.platform != "linux":
+            return None
+        raise MountObservationError("Mount observation unavailable or invalid")
+
+    def check_mount(self, handle, parent_fd, relative, directory=False):
+        observed = self.observation(handle)
+        if parent_fd is not None:
+            parent_mount = self.observation(parent_fd)
+            # Only the firmware directory may introduce a separately mounted filesystem.
+            if not (directory and relative == "boot/firmware") and (
+                observed != parent_mount or os.fstat(handle).st_dev != os.fstat(parent_fd).st_dev
+            ):
+                raise InstallerError(f"Unexpected mount boundary: {relative}")
+        return observed
+
+    def check_handle(self, relative, handle, directory=False):
+        parent, _, name = relative.rpartition("/")
+        parent_fd = self.dirs[parent][0] if relative else None
+        held = os.fstat(handle)
+        self.safe(held, relative, directory)
+        observed = self.check_mount(handle, parent_fd, relative, directory)
+        before = (
+            os.stat(name, dir_fd=parent_fd, follow_symlinks=False)
+            if relative
+            else self.root.lstat()
+        )
+        self.safe(before, relative, directory)
+        flags = os.O_RDONLY | os.O_NOFOLLOW | (os.O_DIRECTORY if directory else os.O_NONBLOCK)
+        fresh = os.open(name, flags, dir_fd=parent_fd) if relative else os.open(self.root, flags)
+        try:
+            info = os.fstat(fresh)
+            self.safe(info, relative, directory)
+            named_mount = self.check_mount(fresh, parent_fd, relative, directory)
+            after = (
+                os.stat(name, dir_fd=parent_fd, follow_symlinks=False)
+                if relative
+                else self.root.lstat()
+            )
+            self.safe(after, relative, directory)
+            if (
+                identity(held) != identity(before)
+                or identity(held) != identity(info)
+                or identity(held) != identity(after)
+            ):
+                raise InstallerError(f"Opened/name identity changed: {relative}")
+            if observed != named_mount:
+                raise InstallerError(f"Opened/name mount identity changed: {relative}")
+        finally:
+            os.close(fresh)
+        return observed
+
     def directory(self, relative):
         if relative in self.dirs:
+            self.check_dirs()
             return self.dirs[relative][0]
         if relative:
             parent, _, name = relative.rpartition("/")
@@ -401,29 +484,29 @@ class Files:
             self.safe(info, relative, directory=True)
             if identity(info) != identity(before):
                 raise InstallerError(f"Directory identity changed: {relative}")
+            observed = self.check_handle(relative, fd, directory=True)
             self.dirs[relative] = (fd, identity(info))
+            self.mounts[relative] = observed
         except BaseException:
             os.close(fd)
             raise
         return fd
 
     def check_dirs(self):
-        # Rewalk identities from the root; cached descriptors alone could name a moved directory.
+        # Fresh descriptors detect same-inode overmounts that stat comparisons cannot.
         for relative, (fd, expected) in self.dirs.items():
-            if relative:
-                parent, _, name = relative.rpartition("/")
-                info = os.stat(name, dir_fd=self.dirs[parent][0], follow_symlinks=False)
-            else:
-                info = self.root.lstat()
-            self.safe(info, relative, directory=True)
-            if identity(info) != expected or identity(os.fstat(fd)) != expected:
+            observed = self.check_handle(relative, fd, directory=True)
+            if identity(os.fstat(fd)) != expected:
                 raise InstallerError(f"Parent identity changed: {relative}")
+            if observed != self.mounts[relative]:
+                raise InstallerError(f"Parent mount identity changed: {relative}")
         if self.lock is not None:
-            handle, expected = self.lock
-            info = os.stat("lock", dir_fd=self.dirs[STATE][0], follow_symlinks=False)
-            self.safe(info, STATE + "/lock")
-            if identity(info) != expected or identity(os.fstat(handle)) != expected:
+            handle, expected, expected_mount = self.lock
+            observed = self.check_handle(STATE + "/lock", handle)
+            if identity(os.fstat(handle)) != expected:
                 raise InstallerError("Lock identity changed")
+            if observed != expected_mount:
+                raise InstallerError("Lock mount identity changed")
 
     def parent(self, relative):
         parent, _, name = relative.rpartition("/")
@@ -446,8 +529,11 @@ class Files:
             self.safe(opened, relative)
             if identity(opened) != identity(before):
                 raise InstallerError(f"File identity changed: {relative}")
+            observed_mount = self.check_handle(relative, stream.fileno())
             raw = stream.read(LIMIT + 1)
             after = os.fstat(stream.fileno())
+            if self.check_handle(relative, stream.fileno()) != observed_mount:
+                raise InstallerError(f"File mount identity changed during read: {relative}")
         self.check_dirs()
         at_name = os.stat(name, dir_fd=fd, follow_symlinks=False)
         self.safe(after, relative)
@@ -475,14 +561,20 @@ class Files:
             name, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600, dir_fd=fd
         )
         with os.fdopen(handle, "wb") as stream:
+            observed_mount = self.check_handle(relative, stream.fileno())
             if metadata is not None:
                 info = os.fstat(stream.fileno())
                 if (info.st_uid, info.st_gid) != (metadata["uid"], metadata["gid"]):
                     os.fchown(stream.fileno(), metadata["uid"], metadata["gid"])
                 os.fchmod(stream.fileno(), metadata["mode"])
+            self.check_dirs()
+            if self.check_handle(relative, stream.fileno()) != observed_mount:
+                raise InstallerError(f"File mount identity changed before write: {relative}")
             stream.write(raw)
             stream.flush()
             os.fsync(stream.fileno())
+            if self.check_handle(relative, stream.fileno()) != observed_mount:
+                raise InstallerError(f"File mount identity changed during write: {relative}")
         os.fsync(fd)
         observed, snapshot = self.read(relative)
         if observed != raw:
@@ -534,13 +626,15 @@ def locked(files):
         files.safe(info, path)
         if identity(info) != identity(os.stat(name, dir_fd=fd, follow_symlinks=False)):
             raise InstallerError("Lock identity changed")
+        observed_mount = files.check_handle(path, handle)
         try:
             fcntl.flock(handle, fcntl.LOCK_EX | fcntl.LOCK_NB)
         except BlockingIOError:
             raise InstallerError("Concurrent installer: lock busy") from None
         os.fsync(handle)
         os.fsync(fd)
-        files.lock = (handle, identity(info))
+        files.lock = (handle, identity(info), observed_mount)
+        files.check_dirs()
         yield
     finally:
         files.lock = None
@@ -971,9 +1065,7 @@ def verify_saved(layout, profile_name):
             if boot is None or rule is None:
                 return report
             _, selected, _, parameters, _ = boot_structure(boot)
-            boot_ok = selected is not None and all(
-                parameters.get(k) == v for k, v in touch_values(profile_name).items()
-            )
+            boot_ok = selected is not None and parameters == touch_values(profile_name)
             sections = input_sections(rule, RULE)
             expected = [
                 ("identifier", [IDENTIFIER]),
